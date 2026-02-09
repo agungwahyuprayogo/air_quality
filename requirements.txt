@@ -4,3 +4,7 @@ pandas
 pyyaml
 scikit-learn
 tqdm
+matplotlib
+scipy
+seaborn
+imblearn

@@ -12,6 +12,16 @@ features:
 - co
 - o3
 - no2
+impute_co: 11.0
+impute_no2: 18.0
+impute_o3: 29.0
+impute_pm10:
+  BAIK: 28.41958041958042
+  TIDAK BAIK: 55.57911392405063
+impute_pm25:
+  BAIK: 39.25233644859813
+  TIDAK BAIK: 82.75473186119874
+impute_so2: 35.55725747629467
 int32_columns:
 - pm10
 - pm25
@@ -30,6 +40,7 @@ label_categories_new:
 - TIDAK BAIK
 object_columns: *id001
 path_joined_data: ../data/interim/joined_dataset.pkl
+path_ohe_stasiun: ../models/ohe_stasiun.pkl
 path_raw_data: ../data/raw/
 path_test_set:
 - ../data/interim/X_test.pkl
