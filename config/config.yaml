@@ -41,6 +41,7 @@ label_categories_new:
 object_columns: *id001
 path_joined_data: ../data/interim/joined_dataset.pkl
 path_ohe_stasiun: ../models/ohe_stasiun.pkl
+path_production_model: ../models/best_model.pkl
 path_raw_data: ../data/raw/
 path_test_set:
 - ../data/interim/X_test.pkl
