@@ -1,6 +1,6 @@
 .venv_aq/
 **/.ipynb_checkpoints/
-**/__pycache__/
+**/__pycache__
 *.py[cod]
 data/
 models/*.pkl
