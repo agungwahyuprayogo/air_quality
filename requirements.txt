@@ -8,3 +8,6 @@ matplotlib
 scipy
 seaborn
 imblearn
+fastapi[standard]
+uvicorn
+streamlit

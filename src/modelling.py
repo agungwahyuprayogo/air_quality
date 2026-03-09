@@ -1,222 +1,318 @@
-import pandas as pd
-import numpy as np
+# Import the required libraries.
+import json
 import copy
 import hashlib
-import json
-import time
-from datetime import datetime
-from tqdm import tqdm
 
-# Sklearn Models
-from sklearn.dummy import DummyClassifier
+import pandas as pd
+import numpy as np
+
 from sklearn.neighbors import KNeighborsClassifier as KNN
-from sklearn.tree import DecisionTreeClassifier as DTC
 from sklearn.linear_model import LogisticRegression as LGR
-from sklearn.ensemble import (BaggingClassifier as BGC, RandomForestClassifier as RFC, 
-                              AdaBoostClassifier as ABC, GradientBoostingClassifier as GBC)
-from sklearn.metrics import classification_report
+from sklearn.tree import DecisionTreeClassifier as DTC
+from sklearn.ensemble import (
+    BaggingClassifier as BGC,
+    RandomForestClassifier as RFC,
+    AdaBoostClassifier as ABC,
+    GradientBoostingClassifier as GBC
+)
+
+from sklearn.metrics import precision_score
 from sklearn.model_selection import RandomizedSearchCV
 
-# Custom Utils
-import utils
+from utils import *
 
-# --- CONFIGURATION ---
+import warnings
+warnings.filterwarnings("ignore")
+
+
+# Constant variables.
 PATH_CONFIG = "../config/config.yaml"
-PATH_LOG = "../logs/training_log.json"
 
-def load_train_data(config, suffix):
-    """
-    Load data train (X, y) berdasarkan suffix (rus, ros, smote) dari config.
-    Contoh: config['path_train_rus']
-    """
-    key = f"path_train_{suffix}"
-    if key not in config:
-        raise ValueError(f"Path {key} tidak ditemukan di config.yaml")
-        
-    X = utils.load_joblib(config[key][0])
-    y = utils.load_joblib(config[key][1])
-    return X, y
 
-def create_log_template():
-    return {
-        'model_name': [], 'model_id': [], 'training_time': [],
-        'training_date': [], 'performance': [], 'f1_score_avg': [],
-        'data_configuration': []
+# Function to load preprocessed data.
+def load_data(config, data_conf):
+    """
+    Load the preprocessed data.
+
+    Parameters:
+    ----------
+    config : dict
+        The loaded configuration file.
+
+    data_conf : str
+        The data configuration type.
+        The value must one of these value: ['train', 'valid', 'test']
+    """
+
+    # Ensure the data_conf is valid.
+    list_data_conf = ["train", "valid", "test"]
+
+    if data_conf not in list_data_conf:
+        raise RuntimeError(f"The data configuration {data_conf} is invalid.")
+    else:
+        data_conf = str(data_conf)
+        path = f"path_clean_{data_conf}"
+
+        X = joblib.load(config[path][0])
+        y = joblib.load(config[path][1])
+
+        return X, y
+
+def create_training_log():
+    """Return a dictionary representing the training log structure."""
+    logger = {
+        "model_name": [],
+        "model_id": [],
+        "training_time": [],
+        "training_date": [],
+        "train_prec": [],
+        "cv_prec": [],
+        "data_configuration": []
     }
 
+    return logger
+
 def update_training_log(current_log, path_log):
-    """Menyimpan log training ke file JSON."""
+    """
+    Update the training log.
+
+    Parameters:
+    ----------
+    current_log : dict
+        The training log current state.
+
+    path_log : str
+        The directory of training log.
+
+    Returns:
+    -------
+    last_log : dict
+        The updated training log.
+    """
+
+    # Ensure the current log immutable.
+    current_log = copy.deepcopy(current_log)
+
+    # Open the training log file.
     try:
         with open(path_log, 'r') as file:
             last_log = json.load(file)
-    except FileNotFoundError:
-        last_log = []
+        file.close()
+        
+    # If the training log does not exists.
+    except FileNotFoundError as err:
+        # Create the new training log.
+        with open(path_log, 'w') as file:
+            file.write("[]")
+        file.close()
 
+        # Reload the new training log.
+        with open(path_log, 'r') as file:
+            last_log = json.load(file)
+        file.close()
+
+    # Add the current log to previous log.
     last_log.append(current_log)
 
+    # Rewrite the training log with the updated one.
     with open(path_log, 'w') as file:
-        json.dump(last_log, file, indent=4)
-    
+        json.dump(last_log, file)
+        file.close()
+
     return last_log
 
-def train_eval_model(models, prefix_name, X_train, y_train, X_valid, y_valid, data_config):
-    """Melakukan training dasar (baseline) untuk berbagai model."""
-    logger = create_log_template()
-    trained_models = copy.deepcopy(models)
-    
-    print(f"Training {prefix_name} with {data_config}...")
-    
-    for model_dict in tqdm(trained_models):
-        model_obj = model_dict['model_object']
-        model_name = f"{prefix_name} - {model_dict['model_name']}"
-        
-        # Training
-        start_time = datetime.now()
-        model_obj.fit(X_train, y_train)
-        end_time = datetime.now()
-        
-        elapsed = (end_time - start_time).total_seconds()
-        
-        # Evaluation
-        y_pred = model_obj.predict(X_valid)
-        report = classification_report(y_valid, y_pred, output_dict=True)
-        
-        # ID Creation
-        plain_id = str(start_time) + str(end_time)
-        cipher_id = hashlib.md5(plain_id.encode()).hexdigest()
-        model_dict['model_id'] = cipher_id
-        
-        # Logging
-        logger['model_name'].append(model_name)
-        logger['model_id'].append(cipher_id)
-        logger['training_time'].append(elapsed)
-        logger['training_date'].append(str(start_time))
-        logger['performance'].append(report)
-        logger['f1_score_avg'].append(report['macro avg']['f1-score'])
-        logger['data_configuration'].append(data_config)
-        
-    update_training_log(logger, PATH_LOG)
-    return trained_models
+# Function to create model object.
+def create_model_object():
+    """Return a list of model to be fitted."""
 
-def hyperparameter_tuning(estimator, param_space, X_train, y_train):
-    """Melakukan Random Search untuk mencari hyperparameter terbaik."""
-    print(f"Tuning {estimator.__class__.__name__}...")
-    
-    tuner = RandomizedSearchCV(
-        estimator=estimator,
-        param_distributions=param_space,
-        n_iter=50, # Bisa dinaikin jadi 100 kalau PC kuat :v
-        scoring="f1", # Kita fokus ke F1 Score untuk kelas positif (TIDAK BAIK)
-        cv=5,
-        n_jobs=-1,
-        verbose=1,
-        random_state=42
-    )
-    
-    start_time = time.time()
-    tuner.fit(X_train, y_train)
-    end_time = time.time()
-    
-    print(f"Best Param: {tuner.best_params_}")
-    print(f"Best CV F1: {tuner.best_score_:.4f}")
-    print(f"Time: {int(end_time - start_time)}s\n")
-    
-    return tuner.best_estimator_, tuner.best_score_
+    # Create model object.
+    knn = KNN()
+    lgr = LGR()
+    dtc = DTC()
+    bgc = BGC()
+    rfc = RFC()
+    abc = ABC()
+    gbc = GBC()
 
-if __name__ == "__main__":
-    # 1. Load Configuration
-    config = utils.load_config(PATH_CONFIG)
-    
-    # 2. Load Data (Menggunakan path dari config, bukan Hardcode)
-    print("Loading Data...")
-    X_rus, y_rus = load_train_data(config, "rus")
-    X_ros, y_ros = load_train_data(config, "ros")
-    X_sm, y_sm = load_train_data(config, "smote")
-    
-    X_valid = utils.load_joblib(config["path_valid_feng"][0])
-    y_valid = utils.load_joblib(config["path_valid_feng"][1])
-    
-    # 3. Define Models for Initial Screening
-    # (Kita inisialisasi satu set model dasar)
-    base_models = [
-        {"model_name": "KNN", "model_object": KNN()},
-        {"model_name": "LGR", "model_object": LGR(random_state=42)},
-        {"model_name": "DTC", "model_object": DTC(random_state=42)},
-        {"model_name": "RFC", "model_object": RFC(random_state=42)},
-        {"model_name": "GBC", "model_object": GBC(random_state=42)},
-        {"model_name": "ABC", "model_object": ABC(random_state=42)}
-        # Baseline & Bagging bisa ditambahkan jika perlu
+    # Create list of model.
+    list_of_model = [
+        {"model_name": knn.__class__.__name__, "model_object": knn, "model_id": ""},
+        {"model_name": lgr.__class__.__name__, "model_object": lgr, "model_id": ""},
+        {"model_name": dtc.__class__.__name__, "model_object": dtc, "model_id": ""},
+        {"model_name": bgc.__class__.__name__, "model_object": bgc, "model_id": ""},
+        {"model_name": rfc.__class__.__name__, "model_object": rfc, "model_id": ""},
+        {"model_name": abc.__class__.__name__, "model_object": abc, "model_id": ""},
+        {"model_name": gbc.__class__.__name__, "model_object": gbc, "model_id": ""}
     ]
 
-    # 4. Training Loop (Experimentation)
-    # RUS
-    train_eval_model(base_models, "Baseline", X_rus, y_rus, X_valid, y_valid, "undersampling")
-    # ROS
-    train_eval_model(base_models, "Baseline", X_ros, y_ros, X_valid, y_valid, "oversampling")
-    # SMOTE
-    train_eval_model(base_models, "Baseline", X_sm, y_sm, X_valid, y_valid, "smote")
+    return list_of_model
+
+# Function to create hyperparameter space.
+def create_param_space():
+    """Return a dict of model hyperparameter."""
+
+    # Define each model hyprerparameter space.
+    knn_params = {
+        "n_neighbors": [2, 3, 4, 5, 6, 10, 15, 20, 25],
+        "weights": ["uniform", "distance"],
+        "p": [1, 2]
+    }
+
+    lgr_params = {
+        "C": [0.01, 0.1, 1.0, 10.0]
+    }
+
+    # Hyperparameter for DTC, RFC, and GBC.
+    DEPTH = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+    # Hyperparameter for BGC, RFC, ABC, and GBC.
+    B = [10, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500]
     
-    print("\n--- Initial Experiment Finished. Logs saved. ---\n")
-    
-    # 5. Hyperparameter Tuning 
-    
-    print("Starting Hyperparameter Tuning on SMOTE Data...")
-    
-    # Define Parameter Grids
-    params_grid = {
-        "KNN": {
-            "model": KNN(),
-            "params": {"n_neighbors": np.arange(1, 13), "weights": ["uniform", "distance"], "p": [1, 2]}
+    # Hyperparameter for ABC and GBC.
+    LR = [0.001, 0.01, 0.05, 0.1, 1]
+
+    dist_params = {
+        "KNeighborsClassifier": knn_params,
+        "LogisticRegression": lgr_params,
+        "DecisionTreeClassifier": {
+            "max_depth": DEPTH
         },
-        "LGR": {
-            "model": LGR(random_state=42),
-            "params": {"C": [0.01, 0.1, 1.0, 10.0]}
+        "BaggingClassifier": {
+            "n_estimators": B
         },
-        "DTC": {
-            "model": DTC(random_state=42),
-            "params": {"max_depth": np.arange(1, 13)}
+        "RandomForestClassifier": {
+            "n_estimators": B,
+            "max_depth": DEPTH
         },
-        "RFC": {
-            "model": RFC(random_state=42),
-            "params": {"n_estimators": [50, 100, 200], "max_depth": np.arange(1, 13)}
+        "AdaBoostClassifier": {
+            "n_estimators": B,
+            "learning_rate": LR
         },
-        "GBC": {
-            "model": GBC(random_state=42),
-            "params": {"n_estimators": [50, 100], "learning_rate": [0.01, 0.1], "max_depth": np.arange(1, 13)}
+        "GradientBoostingClassifier": {
+            "n_estimators": B,
+            "learning_rate": LR,
+            "max_depth": DEPTH
         }
     }
-    
-    best_models_tuned = {}
-    best_score_overall = -1
-    best_model_overall = None
-    best_model_name = ""
 
-    # Loop Tuning Otomatis
-    for name, config_dict in params_grid.items():
-        estimator = config_dict["model"]
-        space = config_dict["params"]
-        
-        best_model, score = hyperparameter_tuning(estimator, space, X_sm, y_sm)
-        
-        # Simpan hasil
-        best_models_tuned[name] = best_model
-        
-        # Cek apakah ini model terbaik sejauh ini?
-        if score > best_score_overall:
-            best_score_overall = score
-            best_model_overall = best_model
-            best_model_name = name
+    return dist_params
 
-    # 6. Saving The Champion Model
-    print("=============================================")
-    print(f"CHAMPION MODEL: {best_model_name}")
-    print(f"Best CV F1 Score: {best_score_overall:.4f}")
-    print("=============================================")
-    
-    prod_model_path = "../models/best_model.pkl"
-    utils.dump_joblib(best_model_overall, prod_model_path)
-    
-    # Update Config
-    utils.update_config("path_production_model", prod_model_path, config, PATH_CONFIG)
-    
-    print("Pipeline Modelling Selesai! Model terbaik tersimpan.")
+# Function o fit & tune model (do CV + HT).
+def evaluate_model(models, hyperparameters, config, path_log):
+    """Cross Validation & Hyperparameter Tuning."""
+
+    # Load data train.
+    X_train, y_train = load_data(config, "train")
+
+    # Create training log.
+    logger = create_training_log()
+
+    # Define a dictionary to store the trained models.
+    trained_models = {}
+
+    # For each data configuration.
+    for data_conf in X_train:
+        X_train_conf = X_train[data_conf]
+        y_train_conf = y_train[data_conf]
+        print(f"Data : {str(data_conf).upper()}")
+
+        # Fit & tune each model.
+        for m, h in zip(models, hyperparameters):
+            print(f"Fit & Tune Model : {m['model_name']}...")
+            # Create tuner object.
+            tuner = RandomizedSearchCV(
+                estimator = m["model_object"],
+                param_distributions = hyperparameters[h],
+                n_iter = 100,
+                scoring = "precision",
+                cv = 5,
+                return_train_score = True,
+                n_jobs = -1,
+                verbose = 1
+            )
+
+            # Compute the training time.
+            start_time = time_stamp()
+            tuner.fit(X_train_conf, y_train_conf)
+            finished_time = time_stamp()
+
+            training_time = finished_time - start_time
+            training_time = training_time.total_seconds()
+
+            # Get the model with best hyperparameters.
+            best_model = tuner.best_estimator_
+
+            # Get the scores of best model.
+            best_index = tuner.best_index_
+            train_prec = tuner.cv_results_["mean_train_score"][best_index]
+            cv_prec = tuner.cv_results_["mean_test_score"][best_index]
+
+            # Store the training information.
+            model_name = f"{data_conf} - {m['model_name']}"
+            logger["model_name"].append(model_name)
+
+            plain_id = str(training_time)
+            cipher_id = hashlib.md5(plain_id.encode()).hexdigest()
+            logger["model_id"].append(cipher_id)
+
+            logger["training_time"].append(training_time)
+            logger["training_date"].append(str(start_time))
+            logger["train_prec"].append(train_prec)
+            logger["cv_prec"].append(cv_prec)
+            logger["data_configuration"].append(data_conf)
+
+            # Store the best model.
+            trained_models[model_name] = [best_model, train_prec, cv_prec]
+        print()
+
+    # Update the current training log.
+    training_log = update_training_log(logger, path_log)
+
+    return trained_models, training_log
+
+# Function to show the performance summary.
+def training_log_to_df(training_log):
+    """Return dataframe of performance summary."""
+    performances = pd.DataFrame()
+
+    for log in training_log:
+        performances = pd.concat([performances, pd.DataFrame(log)])
+
+    performances = performances.sort_values(
+        ["cv_prec", "training_time"],
+        ascending = [False, True]
+    )
+
+    performances = performances.reset_index(drop=True)
+
+    selected_cols = ["model_name", "train_prec", "cv_prec", "training_time"]
+    return performances[selected_cols]
+
+
+# Main function.
+def main():
+    # 1. Load configuration file.
+    config = load_config(PATH_CONFIG)
+
+    # 2. Model Fit & Tune (CV + HT).
+    models = create_model_object()
+    hyperparameters = create_param_space()
+
+    PATH_TRAINING_LOG = config["path_training_log"]
+    trained_models, training_log = evaluate_model(models, hyperparameters, config, PATH_TRAINING_LOG)
+
+    # 3. Get the best model.
+    performances = training_log_to_df(training_log)
+
+    best_name = performances["model_name"][0]
+    best_model = trained_models[best_name][0]
+
+    print(f"Best Model : {best_name}")
+
+    # 4. Model Serialization.
+    PATH_PRODUCTION_MODEL = config["path_production_model"]
+    serialize_data(best_model, PATH_PRODUCTION_MODEL)
+
+
+if __name__ == "__main__":
+    main()
