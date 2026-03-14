@@ -51,8 +51,13 @@ jobs:
         END
     - name: Deploy to EC2
       run: |
-        ssh deploy_ec2 "rm -f docker-compose.yaml"
-        ssh deploy_ec2 "wget https://raw.githubusercontent.com/agungwahyuprayogo/air_quality/refs/heads/master/docker-compose.yaml"
-        ssh deploy_ec2 "echo '${{ secrets.DOCKER_HUB_TOKEN }}' | sudo /usr/bin/docker login -u '${{ secrets.DOCKER_HUB_USER }}' --password-stdin"
-        ssh deploy_ec2 "sudo /usr/bin/docker compose pull"
-        ssh deploy_ec2 "sudo /usr/bin/docker compose up -d"
+        ssh deploy_ec2 << EOF
+          # 1. Hapus dan download ulang file
+          rm -f docker-compose.yaml
+          wget https://raw.githubusercontent.com/agungwahyuprayogo/air_quality/refs/heads/master/docker-compose.yaml
+          
+          # 2. Panggil docker dengan path lengkapnya secara langsung
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | sudo /usr/bin/docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
+          sudo /usr/bin/docker compose pull
+          sudo /usr/bin/docker compose up -d
+        EOF
