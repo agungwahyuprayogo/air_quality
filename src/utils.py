@@ -7,7 +7,7 @@ from datetime import datetime
 
 # Common functions.
 # Function to load configuration parameter.
-def load_config(path_config):
+def load_config(path_config = "config/config.yaml"):
     """
     Load the configuration file (config.yaml).
 
