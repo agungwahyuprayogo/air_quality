@@ -51,6 +51,12 @@ jobs:
         END
     - name: Deploy to EC2
       run: |
-        ssh deploy_ec2 "rm -rf docker-compose.yaml"
+        # 1. Hapus file lama dan ambil yang baru
+        ssh deploy_ec2 "rm -f docker-compose.yaml"
         ssh deploy_ec2 "wget https://raw.githubusercontent.com/agungwahyuprayogo/air_quality/refs/heads/master/docker-compose.yaml"
-        ssh deploy_ec2 "sudo docker compose pull && sudo docker compose up -d"
+        
+        # 2. Login ke Docker Hub di sisi AWS agar bisa narik image (PENTING!)
+        ssh deploy_ec2 "echo '${{ secrets.DOCKER_HUB_TOKEN }}' | sudo docker login -u '${{ secrets.DOCKER_HUB_USER }}' --password-stdin"
+        
+        # 3. Tarik dan Jalankan (Pakai sudo dan pastikan docker terdeteksi)
+        ssh deploy_ec2 "sudo /usr/bin/docker compose pull && sudo /usr/bin/docker compose up -d --no-build"
