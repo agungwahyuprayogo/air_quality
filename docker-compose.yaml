@@ -1,0 +1,21 @@
+name: air-quality
+services:
+  ui:
+    build:          # "where is the Dockerfile location?"
+      context: .    # in root directory
+      dockerfile: ./docker/ui/Dockerfile
+    image: agoenk/ui_aq  # Docker_Hub_Username/Docker_Image_Name
+    container_name: frontend_aq
+    depends_on:
+      - api         # UI service only run after API service.
+    ports:
+      - "8501:8501" # Host:Container
+
+  api:
+    build:
+      context: .
+      dockerfile: ./docker/api/Dockerfile
+    image: agoenk/api_aq
+    container_name: backend_aq
+    ports:
+      - "8080:8080"
