@@ -1,19 +1,19 @@
 name: air-quality
 services:
   ui:
-    build:          # "where is the Dockerfile location?"
-      context: .    # in root directory
-      dockerfile: ./docker/ui/Dockerfile
-    image: agoenk/ui_aq  # Docker_Hub_Username/Docker_Image_Name
+    # build:              # <-- Kasih pagar
+    #   context: .        # <-- Kasih pagar juga
+    #   dockerfile: ./docker/ui/Dockerfile # <-- Kasih pagar juga
+    image: agoenk/ui_aq:latest
     depends_on:
-      - api         # UI service only run after API service.
+      - api
     ports:
-      - "8501:8501" # Host:Container
+      - "8501:8501"
 
   api:
-    build:
-      context: .
-      dockerfile: ./docker/api/Dockerfile
-    image: agoenk/api_aq 
+    # build:              # <-- Kasih pagar
+    #   context: .        # <-- Kasih pagar juga
+    #   dockerfile: ./docker/api/Dockerfile # <-- Kasih pagar juga
+    image: agoenk/api_aq:latest
     ports:
       - "8080:8080"
