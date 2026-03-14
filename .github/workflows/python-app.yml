@@ -52,5 +52,5 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh deploy_ec2 "rm -f docker-compose.yaml"
-        ssh deploy_ec2 "wget https://raw.githubusercontent.com/indraps30/mlp-aq2026/refs/heads/master/docker-compose.yaml"
+        ssh deploy_ec2 "wget https://raw.githubusercontent.com/agungwahyuprayogo/air_quality/refs/heads/master/docker-compose.yaml"
         ssh deploy_ec2 "sudo docker compose pull && sudo docker compose up -d"
