@@ -9,6 +9,7 @@ WORKDIR /home
 COPY ./requirements.txt ./
 COPY ./src ./src/
 COPY ./assets ./assets/
+COPY ./config ./config/
 
 
 # Command to execute when building Docker images.
