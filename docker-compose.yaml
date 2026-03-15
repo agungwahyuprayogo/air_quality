@@ -1,21 +1,17 @@
 name: air-quality
 
 services:
-    
   ui:
-    image: ${DOCKER_USER}/ui_aq:latest
+    image: agoenk/ui_aq:latest  # <--- GANTI INI JADI NAMA USER KAMU LANGSUNG
     ports:
       - "8501:8501"
     volumes:
-      - ./config:/home/config  # <--- BARIS INI WAJIB ADA!
+      - ./config:/home/config
     depends_on:
       - api
 
 
   api:
-    # build:              # <-- Kasih pagar
-    #   context: .        # <-- Kasih pagar juga
-    #   dockerfile: ./docker/api/Dockerfile # <-- Kasih pagar juga
     image: agoenk/api_aq:latest
     ports:
       - "8080:8080"
