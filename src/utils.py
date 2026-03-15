@@ -7,31 +7,19 @@ from datetime import datetime
 
 # Common functions.
 # Function to load configuration parameter.
+
 PATH_CONFIG = "/home/config/config.yaml"
 
-def load_config(path_config = PATH_CONFIG):
-    """
-    Load the configuration file (config.yaml).
-
-    Parameters:
-    ----------
-    path_config : str
-        Configuration file location.
-
-    Returns:
-    -------
-    params : dict
-        The configuration parameters.
-    """
-
-    # Try to load config.yaml file.
+def load_config():
     try:
-        with open(path_config, 'r') as file:
+        # Gunakan PATH_CONFIG (huruf besar semua)
+        with open(PATH_CONFIG, 'r') as file: 
             params = yaml.safe_load(file)
-    except FileNotFoundError as err:
-        raise RuntimeError(f"Configuration file not found in {path_config}")
-
+    except FileNotFoundError:
+        raise RuntimeError(f"Configuration file not found in {PATH_CONFIG}")
     return params
+
+
 
 # Function to update configuration parameter.
 def update_config(key, value, params, path_config):

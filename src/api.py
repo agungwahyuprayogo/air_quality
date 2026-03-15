@@ -11,11 +11,10 @@ import preprocessing
 
 
 # Constant variables.
-PATH_CONFIG = "../config/config.yaml"
-
+PATH_CONFIG = "/home/config/config.yaml"
 
 # Load serialized estimators.
-config = utils.load_config(PATH_CONFIG)
+config = utils.load_config()
 ohe_stasiun = utils.deserialize_data(config["path_fitted_encoder_stasiun"])
 scaler = utils.deserialize_data(config["path_fitted_scaler"])
 le_encoder = utils.deserialize_data(config["path_fitted_encoder_label"])

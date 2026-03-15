@@ -2,7 +2,7 @@ name: air-quality
 
 services:
   ui:
-    image: agoenk/ui_aq:latest  # <--- GANTI INI JADI NAMA USER KAMU LANGSUNG
+    image: agoenk/ui_aq:latest  
     ports:
       - "8501:8501"
     volumes:
