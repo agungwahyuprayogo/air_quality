@@ -52,6 +52,7 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh deploy_ec2 << EOF
+          
           mkdir -p ~/mlprocess
           cd ~/mlprocess
           
@@ -61,5 +62,4 @@ jobs:
           echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
           docker compose pull
           docker compose up -d
-        EOF
         EOF
