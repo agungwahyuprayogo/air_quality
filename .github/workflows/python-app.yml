@@ -52,12 +52,14 @@ jobs:
     - name: Deploy to EC2
       run: |
         ssh deploy_ec2 << EOF
-          # 1. Hapus dan download ulang file
+          mkdir -p ~/mlprocess
+          cd ~/mlprocess
+          
           rm -f docker-compose.yaml
           wget https://raw.githubusercontent.com/agungwahyuprayogo/air_quality/refs/heads/master/docker-compose.yaml
           
-          # 2. Panggil docker dengan path lengkapnya secara langsung
-          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | sudo /usr/bin/docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
-          sudo /usr/bin/docker compose pull
-          sudo /usr/bin/docker compose up -d
+          echo "${{ secrets.DOCKER_HUB_TOKEN }}" | docker login -u "${{ secrets.DOCKER_HUB_USER }}" --password-stdin
+          docker compose pull
+          docker compose up -d
+        EOF
         EOF
