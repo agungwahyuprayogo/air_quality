@@ -1,14 +1,16 @@
 name: air-quality
+
 services:
+    
   ui:
-    # build:              # <-- Kasih pagar
-    #   context: .        # <-- Kasih pagar juga
-    #   dockerfile: ./docker/ui/Dockerfile # <-- Kasih pagar juga
-    image: agoenk/ui_aq:latest
-    depends_on:
-      - api
+    image: ${DOCKER_USER}/ui_aq:latest
     ports:
       - "8501:8501"
+    volumes:
+      - ./config:/home/config  # <--- BARIS INI WAJIB ADA!
+    depends_on:
+      - api
+
 
   api:
     # build:              # <-- Kasih pagar

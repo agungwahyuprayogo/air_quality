@@ -10,8 +10,7 @@ import utils
 # PATH_CONFIG = "../config/config.yaml"
 PATH_IMAGE = "assets/header_images.webp"
 
-config = utils.load_config()
-
+config = utils.load_config(path_config = "/home/config/config.yaml")
 
 # Load images in the header.
 header_images = Image.open(PATH_IMAGE)
