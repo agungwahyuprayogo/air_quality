@@ -7,7 +7,7 @@ from PIL import Image
 import utils
 
 # Constant variables.
-# PATH_CONFIG = "../config/config.yaml"
+
 PATH_IMAGE = "/home/assets/header_images.webp"
 PATH_CONFIG = "/home/config/config.yaml"
 
